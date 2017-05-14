@@ -7,8 +7,6 @@ define('OUTPUT_FILES_DIR', 'Output files');
 
 $matrix = json_decode($_POST['matrix_to_json'],true);
 
-var_dump($_POST['matrix_to_json']);
-
 isset($matrix['fnum']) ? $excel_file_number = $matrix['fnum'] : $excel_file_number = false;
 
 if ($excel_file_number) {

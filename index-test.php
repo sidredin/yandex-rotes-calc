@@ -5,17 +5,28 @@
 	<title>Маршруты</title>
 </head>
 <body>
-	<h2>Выберите нужный пункт по запросу "Запрошенный адрес":</h2>
-	<div class="results">
-		<div class="radio-btn-wrapper"><input   type="radio"  name="point#"  value="44.770264 41.739941"/></div>
-		<div class="results__description">
-			<p>Россия, Москва, Тверская улица, 6с1</p>
-		</div>
-	</div>
 	<script>
-		var a = 2; var b = 7;
-		var c = [a,b];
-		console.log(c);
+		var p2 = new Promise((resolve, reject) => { 
+		  setTimeout(resolve, 2000, "two"); 
+		});
+		var p1 = new Promise((resolve, reject) => { 
+		  setTimeout(resolve, 1000, "one"); 
+		}); 
+		var p3 = new Promise((resolve, reject) => {
+		  setTimeout(resolve, 3000, "three");
+		});
+		var p4 = new Promise((resolve, reject) => {
+		  setTimeout(resolve, 4000, "four");
+		});
+
+		Promise.all([p2, p1, p3, p4]).then(value => { 
+		  console.log(value);
+		}, reason => {
+		  console.log(reason)
+		});
+
+		//Выведет:
+		//"reject"
 	</script>
 	
 </body>
