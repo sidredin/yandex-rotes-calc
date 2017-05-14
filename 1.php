@@ -3,7 +3,7 @@ header('Content-Type: text/html; charset=utf-8');
 require_once 'Classes/PHPExcel.php';
 
 // Настройки
-define('OUTPUT_FILES_DIR', 'Output files');
+define('OUTPUT_FILES_DIR', 'Outfiles');
 
 $matrix = json_decode($_POST['matrix_to_json'],true);
 
