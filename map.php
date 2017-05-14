@@ -1,28 +1,31 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-		<title>Расчет маршрутов</title>
-    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-    <script src="https://api-maps.yandex.ru/2.1/?mode=debug&lang=ru_RU" type="text/javascript"></script>
-    <style>
-    	p{
-    		margin: 0;
-    	}
-    	pre{
-    		/*white-space: pre-line;*/
-    	}
-    	.results{
-    		display: flex;
-    	}
-    	.results div{
-    		display: flex;
-    		align-items: center;
-    	}
-    </style>
+	<title>Расчет маршрутов</title>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <script src="https://api-maps.yandex.ru/2.1/?mode=debug&lang=ru_RU" type="text/javascript"></script>
+  <style>
+  	p{
+  		margin: 0;
+  	}
+  	.results{
+  		display: flex;
+  	}
+  	.results div{
+  		display: flex;
+  		align-items: center;
+  	}
+  	#run{
+  		margin: 20px 0;
+  	}
+  	#messages{
+  		margin-bottom: 20px;
+  	}
+  </style>
 </head>
 
 <body>
-	<pre>
+	<div class="top">
 		<?php
 
 		$file_lines = [];
@@ -41,7 +44,7 @@
 			{	
 				
 				$file_line = trim(fgets($fp, 999));
-				$file_line = mb_convert_encoding($file_line, 'UTF-8', 'cp1251');
+				// $file_line = mb_convert_encoding($file_line, 'UTF-8', 'cp1251');
 				$file_line_exploded = explode ( ';', $file_line);
 				switch (count($file_line_exploded)) {
 					case 1:
@@ -111,105 +114,96 @@
 		<div>
 			<button id="run">Поехали!</button>
 		</div>
-		 </pre>
-    <div id="map" style="width: 600px; height: 400px"></div>
-    <script src="http://code.jquery.com/jquery-1.8.3.js"></script>
-		<!-- <script src="js/ymap-script.js"></script> -->
-    <script type="text/javascript">
-      ymaps.ready(init);
-      var myMap, 
-          myPlacemark,
-          routes=[],
-          distanses=[], 
-					matrix = {};
+	</div>
+  <div id="messages"></div>
+  <div id="map" style="width: 600px; height: 400px"></div>
+  <script src="http://code.jquery.com/jquery-1.8.3.js"></script>
+	<!-- <script src="js/ymap-script.js"></script> -->
+  <script type="text/javascript">
+    ymaps.ready(init);
+    var myMap, 
+        myPlacemark,
+        routes=[],
+        distanses=[], 
+				matrix = {};
 
-      function init(){ 
-        myMap = new ymaps.Map("map", {
-            center: [55.76, 37.64],
-            zoom: 7
-        }); 
+    function init(){ 
+      myMap = new ymaps.Map("map", {
+          center: [55.76, 37.64],
+          zoom: 7
+      }); 
 
-        var points = <?php echo json_encode($file_lines); ?>;
-        $('#run').click(function () {
-        	for (let point in points) {
-        		if (points[point]['lat']) {
-        			// console.log(point+': '+points[point]['lng']);
-        		} else {
-        			var latlng = $("input[name=point"+point+"]").val();
-        			var latlng_arr = latlng.split(' ');
-        			points[point]['lat'] = latlng_arr[1];
-        			points[point]['lng'] = latlng_arr[0];
-        		}
+      var points = <?php echo json_encode($file_lines); ?>;
+      $('#run').click(function () {
+      	for (let point in points) {
+      		if (points[point]['lat']) {
+      		} else {
+      			var latlng = $("input[name=point"+point+"]").val();
+      			var latlng_arr = latlng.split(' ');
+      			points[point]['lat'] = latlng_arr[1];
+      			points[point]['lng'] = latlng_arr[0];
+      		}
+				}
+				matrix.fnum = <?php echo $file_number !== NULL ? $file_number : 'false'; ?>;
+				matrix.rows = {};
+  			var array_with_rotes_promises = [];
+				for (let matrix_row in points){
+					matrix.rows[matrix_row] = {};
+					matrix.rows[matrix_row]['row_obj'] = points[matrix_row];
+					for (let matrix_col in points){
+						if ( points[matrix_row]['old_point'] && points[matrix_col]['old_point'] ) continue;
+						matrix.rows[matrix_row][matrix_col] = {} 
+						matrix.rows[matrix_row][matrix_col]['col_obj'] = points[matrix_col];
+						if ( matrix_row === matrix_col ) {
+							matrix.rows[matrix_row][matrix_col]['distanse'] = 0;
+						}else{
+							array_with_rotes_promises.push(calcDistanse(matrix, matrix_row, matrix_col));     		
+						}
 					}
-					matrix.fnum = <?php echo $file_number !== NULL ? $file_number : 'false'; ?>;
-					matrix.rows = {};
-    			var array_with_rotes_promises = [];
-					for (let matrix_row in points){
-						matrix.rows[matrix_row] = {};
-						matrix.rows[matrix_row]['row_obj'] = points[matrix_row];
+				}
+
+		    Promise.all(array_with_rotes_promises).then(items => {
+		      items.forEach(route => {
+		        myMap.geoObjects.add(route);
+		        distanses.push(route.getLength());
+		      });
+		      var counter = 0; 
+		      for (let matrix_row in points){
 						for (let matrix_col in points){
 							if ( points[matrix_row]['old_point'] && points[matrix_col]['old_point'] ) continue;
-							matrix.rows[matrix_row][matrix_col] = {} 
-							matrix.rows[matrix_row][matrix_col]['col_obj'] = points[matrix_col];
-							if ( matrix_row === matrix_col ) {
-								matrix.rows[matrix_row][matrix_col]['distanse'] = 0;
-							}else{
-								array_with_rotes_promises.push(calcDistanse(matrix, matrix_row, matrix_col));     		
+							if ( matrix_row !== matrix_col ) {
+								matrix.rows[matrix_row][matrix_col]['distanse'] = distanses[counter];
+								counter++;
 							}
 						}
 					}
 
-					console.log(array_with_rotes_promises);
+		      matrix_to_json = JSON.stringify(matrix);
 
-			    Promise.all(array_with_rotes_promises).then(items => {
-			      console.log(items);
-			      items.forEach(route => {
-			        myMap.geoObjects.add(route);
-			        distanses.push(route.getLength());
-			      });
-			      var counter = 0; 
-			      for (let matrix_row in points){
-							for (let matrix_col in points){
-								if ( points[matrix_row]['old_point'] && points[matrix_col]['old_point'] ) continue;
-								if ( matrix_row !== matrix_col ) {
-									matrix.rows[matrix_row][matrix_col]['distanse'] = distanses[counter];
-									counter++;
-								}
-							}
-						}
-
-			      console.log(matrix);
-			      matrix_to_json = JSON.stringify(matrix);
-			      console.log(matrix_to_json);
-			      
-			      // 
-			      // console.log('full', full);
-			      $.ajax({
-					      url: "/1.php",
-					      data: {matrix_to_json: matrix_to_json},
-					      type: 'POST',
-					      success: function(res){
-					          if(!res) alert('Ошибка!');
-					          $('#messages').html(res);
-					      },
-					      error: function(res){
-					          alert('Произошла ошибка в процессе Ajax-запроса');
-					      },
-						  });
-			    });
-        });
-      }
-      function calcDistanse(matrix, matrix_row, matrix_col) {
-      	// console.log(matrix);
-      	var row_obj_lat = +matrix.rows[matrix_row]['row_obj']['lat'];
-				var row_obj_lng = +matrix.rows[matrix_row]['row_obj']['lng'];
-				var col_obj_lat = +matrix.rows[matrix_row][matrix_col]['col_obj']['lat'];
-				var col_obj_lng = +matrix.rows[matrix_row][matrix_col]['col_obj']['lng'];
-      	return ymaps.route([[row_obj_lat,row_obj_lng], [col_obj_lat, col_obj_lng]], {
-          mapStateAutoApply: true
-        });
-      }
-    </script>
+		      $.ajax({
+				      url: "/1.php",
+				      data: {matrix_to_json: matrix_to_json},
+				      type: 'POST',
+				      success: function(res){
+				          if(!res) alert('Ошибка!');
+				          $('#messages').html(res);
+				      },
+				      error: function(res){
+				          alert('Произошла ошибка в процессе Ajax-запроса');
+				      },
+					  });
+		    });
+      });
+    }
+    function calcDistanse(matrix, matrix_row, matrix_col) {
+    	var row_obj_lat = +matrix.rows[matrix_row]['row_obj']['lat'];
+			var row_obj_lng = +matrix.rows[matrix_row]['row_obj']['lng'];
+			var col_obj_lat = +matrix.rows[matrix_row][matrix_col]['col_obj']['lat'];
+			var col_obj_lng = +matrix.rows[matrix_row][matrix_col]['col_obj']['lng'];
+    	return ymaps.route([[row_obj_lat,row_obj_lng], [col_obj_lat, col_obj_lng]], {
+        mapStateAutoApply: true
+      });
+    }
+  </script>
 </body>
-
 </html>

@@ -7,10 +7,11 @@ define('OUTPUT_FILES_DIR', 'Output files');
 
 $matrix = json_decode($_POST['matrix_to_json'],true);
 
-isset($matrix['fnum']) ? $excel_file_number = $matrix['fnum'] : $excel_file_number = false;
-
-if ($excel_file_number) {
-
+isset($matrix['fnum']) ? $file_number = $matrix['fnum'] : $file_number = false;
+if ($file_number) {
+	$excel_file = OUTPUT_FILES_DIR.'/Matrix '.$file_number.'.xlsx';
+	$txt_file = OUTPUT_FILES_DIR.'/Output file '.$file_number.'.txt'; 
+	makeExcelAndTxtFile( $excel_file, $txt_file, $matrix);
 } else {
 	// Открываем файл с номером последней пары экспортированных файлов и считываем этот номер
 	$fp = fopen('Last file number (DO NOT DELETE).txt', "rt" );
@@ -28,9 +29,9 @@ if ($excel_file_number) {
   /* Записываем в файл */
   $objWriter->save($excel_file);
 	makeExcelAndTxtFile( $excel_file, $txt_file, $matrix);
-	// $fp = fopen('Last file number (DO NOT DELETE).txt', "w" );
-	// fputs($fp, $last_file_number);
-	// fclose($fp);
+	$fp = fopen('Last file number (DO NOT DELETE).txt', "w" );
+	fputs($fp, $last_file_number);
+	fclose($fp);
 }
 
 function makeExcelAndTxtFile( $file, $txt_file, $matrix ){
@@ -65,15 +66,11 @@ function makeExcelAndTxtFile( $file, $txt_file, $matrix ){
 			$counter++;
 		}
 		foreach ($row_array as $col_number => $col_array) {
-			// if($col_number != 'row_obj'){
-
-			// }
-			echo '<hr>$row_number: <br>';
-			var_dump($row_number);
-			echo '<br>$col_number: <br>';
-			var_dump($col_number);
-			echo '<br>$col_array: <br>';
-			var_dump($col_array);
+			if($col_number != 'row_obj'){
+				$working_sheet->setCellValueByColumnAndRow($col_number, $row_number+1, $col_array['distanse']);
+				// Применяем выравнивание
+		    $working_sheet->getStyleByColumnAndRow($col_number, $row_number+1)->getAlignment()->setHorizontal(PHPExcel_Style_Alignment::HORIZONTAL_CENTER);
+			}
 		}
 	}
 
@@ -86,7 +83,7 @@ function makeExcelAndTxtFile( $file, $txt_file, $matrix ){
  //  /* Записываем в файл */
  //  $objWriter->save("test.xlsx");
 	if ($counter) {
-		echo "Обработка списка прошла успешно,<br>добавлено пунктов: $counter";
+		echo "<p>Обработка списка прошла успешно,<br>добавлено пунктов: $counter.<br>Ссылка на скачивание Excel-файла: <a  type='application/file' download href='$file'>$file</a><br>Ссылка на скачивание txt-файла: <a  type='application/file' download href='$txt_file'>$txt_file</a><p>";
 	} else {
 		echo "Произошла непредвиденная ошибка";
 	}
