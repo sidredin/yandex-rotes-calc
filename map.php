@@ -35,7 +35,7 @@
 			$file_name_exploded = explode ( ' ' , $file_name );
 			$number_and_ext = $file_name_exploded[2];
 			$number_and_ext_exploded = explode ( '.' , $number_and_ext );
-			$file_number = $number_and_ext_exploded[0];
+			$file_number = $number_and_ext_exploded[0]; 
 		}
 		$fp = fopen($_FILES['uploadedfile']['tmp_name'], "r"); // Открываем файл в режиме чтения
 		if ($fp) 

@@ -6,7 +6,6 @@ require_once 'Classes/PHPExcel.php';
 define('OUTPUT_FILES_DIR', 'Outfiles');
 
 $matrix = json_decode($_POST['matrix_to_json'],true);
-
 isset($matrix['fnum']) ? $file_number = $matrix['fnum'] : $file_number = false;
 if ($file_number) {
 	$excel_file = OUTPUT_FILES_DIR.'/Matrix '.$file_number.'.xlsx';
