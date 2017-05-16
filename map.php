@@ -4,28 +4,11 @@
 	<title>Расчет маршрутов</title>
   <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
   <script src="https://api-maps.yandex.ru/2.1/?mode=debug&lang=ru_RU" type="text/javascript"></script>
-  <style>
-  	p{
-  		margin: 0;
-  	}
-  	.results{
-  		display: flex;
-  	}
-  	.results div{
-  		display: flex;
-  		align-items: center;
-  	}
-  	#run{
-  		margin: 20px 0;
-  	}
-  	#messages{
-  		margin-bottom: 20px;
-  	}
-  </style>
+  <link rel="stylesheet" href="styles.css">
 </head>
 
 <body>
-	<div class="top">
+	<form class="top" id="results-form">
 		<?php
 
 		$file_lines = [];
@@ -56,25 +39,29 @@
 							$address = $file_line_exploded[0];
 							$file_lines[$lines_counter]['address'] = $address;
 							$address_for_geokoder = str_replace ( " " , "+" ,  $address);
-							$geokoder_response = file_get_contents('https://geocode-maps.yandex.ru/1.x/?format=json&geocode='.$address_for_geokoder);
+							$geokoder_response = file_get_contents('https://geocode-maps.yandex.ru/1.x/?format=json&results=50&geocode='.$address_for_geokoder);
 							$geokoder_response_decoded = json_decode ( $geokoder_response, true );
 							$featureMember = $geokoder_response_decoded['response']['GeoObjectCollection']['featureMember'];
 							echo '<hr><br><h2>Выберите нужный пункт по запросу "'.$address.'":</h2>';
 							foreach ( $featureMember as $key => $result ) {
-								$latlng = $result['GeoObject']['Point']['pos'];
 								if ($key===0) {
-									$is_checked =	'checked';
+									$is_checked =	' checked';
 								} else {
 									$is_checked =	'';
-								}					
+								}
+								$point_position_longlat = $result['GeoObject']['Point']['pos'];
+								$point_position_longlat_exploded = explode ( ' ' , $point_position_longlat );
+								$latlng = $point_position_longlat_exploded[1].' '.$point_position_longlat_exploded[0];
 								echo '<div class="results">
-												<div class="radio-btn-wrapper"><input '. $is_checked . '  type="radio"  name="point'. $lines_counter .'"  value="'.$latlng.'"/></div>
+												<div class="radio-btn-wrapper"><input'. $is_checked . ' type="radio"  name="point'. $lines_counter .'"  value="'.$latlng.'"/></div>
 												<div class="results__description">
 													<p>'.$result['GeoObject']['metaDataProperty']['GeocoderMetaData']['text'].'</p>
 												</div>
 											</div>
 								';
 							}
+							echo '<p style="font-weight: bold; margin-top: 20px;">Если Вы не нашли подходящий пункт в списке -<br>можете ввести его координаты в текстовое поле (через пробел):</p><input type="text" name="point_txt'. $lines_counter .'"  value=""/>
+							';
 							
 							break;
 						}
@@ -111,9 +98,9 @@
 		else echo "Ошибка при открытии файла";
 		fclose($fp);
 		?>
-		<div>
-			<button id="run">Поехали!</button>
-		</div>
+	</form>
+	<div>
+		<button id="run">Поехали!</button>
 	</div>
   <div id="messages"></div>
   <div id="map" style="width: 600px; height: 400px"></div>
@@ -135,15 +122,25 @@
 
       var points = <?php echo json_encode($file_lines); ?>;
       $('#run').click(function () {
-      	for (let point in points) {
-      		if (points[point]['lat']) {
-      		} else {
-      			var latlng = $("input[name=point"+point+"]").val();
-      			var latlng_arr = latlng.split(' ');
-      			points[point]['lat'] = latlng_arr[1];
-      			points[point]['lng'] = latlng_arr[0];
+      	var form_data = $('#results-form').serializeArray();
+      	console.log('form_data:');
+      	console.log(form_data);
+      	form_data.forEach(item=>{
+      		var point_number = 0;
+      		var item_name_end = item.name.substring(5);
+      		console.log('item_name_end:');
+      		console.log(item_name_end);
+      		console.log('search:');
+      		if(item_name_end.indexOf("_txt")==-1){
+      			point_number = item.name.substring(5);
+      		}else{
+      			point_number = item.name.substring(9);
       		}
-				}
+      		var latlng = item.value;
+      		console.log('latlng:');
+      		console.log(latlng);
+      		if(latlng) latlngInsert(point_number, latlng);
+      	});
 				matrix.fnum = <?php echo $file_number !== NULL ? $file_number : 'false'; ?>;
 				matrix.rows = {};
   			var array_with_rotes_promises = [];
@@ -165,7 +162,7 @@
 		    Promise.all(array_with_rotes_promises).then(items => {
 		      items.forEach(route => {
 		        myMap.geoObjects.add(route);
-		        distanses.push(route.getLength());
+		        distanses.push((route.getLength())/1000);//расстояния нужны в километрах
 		      });
 		      var counter = 0; 
 		      for (let matrix_row in points){
@@ -186,14 +183,23 @@
 				      type: 'POST',
 				      success: function(res){
 				          if(!res) alert('Ошибка!');
-				          $('#messages').html(res);
+				          $('#messages').html('<div class=success>'+res+'</div>');
 				      },
 				      error: function(res){
 				          alert('Произошла ошибка в процессе Ajax-запроса');
 				      },
 					  });
+		    }, error => {
+		    	$('#messages').html('<div class=error>Произошла какая-то ошибка. Проверьте, всё ли правильно Вы ввели.</div>');
 		    });
       });
+	    function latlngInsert(point_number, latlng) {
+	    	var latlng_arr = latlng.split(' ');
+	  		console.log('latlng_arr:');
+	  		console.log(latlng_arr);
+				points[point_number]['lat'] = latlng_arr[0];
+				points[point_number]['lng'] = latlng_arr[1];
+	    }
     }
     function calcDistanse(matrix, matrix_row, matrix_col) {
     	var row_obj_lat = +matrix.rows[matrix_row]['row_obj']['lat'];
